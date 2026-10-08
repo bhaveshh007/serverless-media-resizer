@@ -1,0 +1,10 @@
+﻿{
+  "version": "2.0",
+  "routeKey": "POST /",
+  "rawPath": "/",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": "{\"filename\":\"test.jpg\",\"contentType\":\"image/jpeg\"}",
+  "isBase64Encoded": false
+}

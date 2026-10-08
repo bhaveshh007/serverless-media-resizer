@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Serverless Media Studio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .aspect-square-box { aspect-ratio: 1 / 1; }
+    .aspect-story-box  { aspect-ratio: 9 / 16; }
+    .aspect-banner-box { aspect-ratio: 16 / 9; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+  <header class="py-6 border-b border-slate-800 bg-slate-900/50 backdrop-blur">
+    <div class="max-w-6xl mx-auto px-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-2xl">⚡</span>
+        <h1 class="text-xl font-bold tracking-tight">Serverless Media Studio</h1>
+      </div>
+      <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full font-medium">Pipeline Active</span>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-8">
+    <div id="drop-zone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500 bg-slate-900/40 rounded-2xl p-8 text-center cursor-pointer transition">
+      <input type="file" id="file-input" class="hidden" accept=".jpg,.jpeg,.png,.webp">
+      <div class="space-y-2">
+        <p class="text-base font-semibold text-slate-200">Drag & drop your source photo, or <span class="text-indigo-400 underline">browse</span></p>
+        <p class="text-xs text-slate-400">Supported formats: JPG, PNG, WEBP (iPhone HEIC files must be exported as JPG/PNG first)</p>
+      </div>
+    </div>
+
+    <div id="status-container" class="hidden mt-6 text-center">
+      <p id="status-text" class="text-sm font-medium text-indigo-400 animate-pulse"></p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+      <!-- Square -->
+      <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-col">
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="text-sm font-bold text-slate-200">Square (1:1)</h2>
+          <span class="text-xs text-slate-400">1080 × 1080</span>
+        </div>
+        <div class="flex-1 aspect-square-box bg-slate-950 rounded-lg overflow-hidden flex items-center justify-center border border-slate-800/80">
+          <img id="img-square" class="hidden w-full h-full object-cover">
+          <span id="ph-square" class="text-xs text-slate-500">Waiting for upload...</span>
+        </div>
+        <a id="btn-square" class="hidden mt-3 block text-center py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-lg transition" target="_blank" download>Download 1:1</a>
+      </div>
+
+      <!-- Story -->
+      <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-col">
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="text-sm font-bold text-slate-200">Story (9:16)</h2>
+          <span class="text-xs text-slate-400">1080 × 1920</span>
+        </div>
+        <div class="flex-1 aspect-story-box bg-slate-950 rounded-lg overflow-hidden flex items-center justify-center border border-slate-800/80">
+          <img id="img-story" class="hidden w-full h-full object-cover">
+          <span id="ph-story" class="text-xs text-slate-500">Waiting for upload...</span>
+        </div>
+        <a id="btn-story" class="hidden mt-3 block text-center py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-lg transition" target="_blank" download>Download 9:16</a>
+      </div>
+
+      <!-- Banner -->
+      <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-col">
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="text-sm font-bold text-slate-200">Banner (16:9)</h2>
+          <span class="text-xs text-slate-400">1200 × 675</span>
+        </div>
+        <div class="flex-1 aspect-banner-box bg-slate-950 rounded-lg overflow-hidden flex items-center justify-center border border-slate-800/80">
+          <img id="img-banner" class="hidden w-full h-full object-cover">
+          <span id="ph-banner" class="text-xs text-slate-500">Waiting for upload...</span>
+        </div>
+        <a id="btn-banner" class="hidden mt-3 block text-center py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-lg transition" target="_blank" download>Download 16:9</a>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API = "https://3ocrtcdda7.execute-api.ap-south-1.amazonaws.com/";
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const statusContainer = document.getElementById('status-container');
+    const statusText = document.getElementById('status-text');
+
+    dropZone.onclick = () => fileInput.click();
+    fileInput.onchange = (e) => handleFile(e.target.files[0]);
+
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('border-indigo-500'); };
+    dropZone.ondragleave = () => dropZone.classList.remove('border-indigo-500');
+    dropZone.ondrop = (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-indigo-500');
+      if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    };
+
+    function setStatus(msg, isError = false) {
+      statusContainer.classList.remove('hidden');
+      statusText.textContent = msg;
+      statusText.className = isError ? 'text-sm font-medium text-rose-400' : 'text-sm font-medium text-indigo-400 animate-pulse';
+    }
+
+    async function handleFile(file) {
+      if (!file) return;
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'heic') {
+        alert('HEIC files are not supported by the default decoder. Please export or convert your image to JPG or PNG before uploading.');
+        return;
+      }
+      if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
+        alert('Please choose a JPG, PNG, or WEBP image.');
+        return;
+      }
+
+      setStatus('Requesting pre-signed URL for ' + file.name + '...');
+      try {
+        const uniqueName = Date.now() + '_' + file.name;
+        const presignRes = await fetch(API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: uniqueName, contentType: file.type || 'image/jpeg' })
+        });
+        if (!presignRes.ok) throw new Error('Failed to obtain pre-signed upload URL');
+        const data = await presignRes.json();
+
+        setStatus('Uploading source image directly to S3 intake bucket...');
+        const uploadRes = await fetch(data.uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type || 'image/jpeg' },
+          body: file
+        });
+        if (!uploadRes.ok) throw new Error('Direct S3 upload failed');
+
+        setStatus('Processing in AWS Lambda (generating Square, Story, and Banner crops)...');
+        pollForAssets(data.expectedAssets);
+      } catch (err) {
+        setStatus('Error: ' + err.message, true);
+      }
+    }
+
+    async function pollForAssets(assets) {
+      const targets = [
+        { key: 'square', img: document.getElementById('img-square'), ph: document.getElementById('ph-square'), btn: document.getElementById('btn-square'), url: assets.square },
+        { key: 'story',  img: document.getElementById('img-story'),  ph: document.getElementById('ph-story'),  btn: document.getElementById('btn-story'),  url: assets.story },
+        { key: 'banner', img: document.getElementById('img-banner'), ph: document.getElementById('ph-banner'), btn: document.getElementById('btn-banner'), url: assets.banner }
+      ];
+
+      let attempts = 0;
+      const maxAttempts = 25;
+      const timer = setInterval(async () => {
+        attempts++;
+        let finishedCount = 0;
+
+        for (const t of targets) {
+          if (!t.img.classList.contains('hidden')) {
+            finishedCount++;
+            continue;
+          }
+          try {
+            const check = await fetch(t.url + '?t=' + Date.now(), { method: 'HEAD' });
+            if (check.ok) {
+              t.img.src = t.url;
+              t.img.classList.remove('hidden');
+              t.ph.classList.add('hidden');
+              t.btn.href = t.url;
+              t.btn.classList.remove('hidden');
+              finishedCount++;
+            }
+          } catch (e) {}
+        }
+
+        if (finishedCount === targets.length) {
+          clearInterval(timer);
+          setStatus('All social media assets generated successfully!');
+        } else if (attempts >= maxAttempts) {
+          clearInterval(timer);
+          setStatus('Processing timed out. Please check back shortly or retry.', true);
+        }
+      }, 1500);
+    }
+  </script>
+</body>
+</html>

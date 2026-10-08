@@ -1,0 +1,10 @@
+﻿live_resizer.zip
+live_resizer_extracted/
+__pycache__/
+*.pyc
+cors-intake.json
+lifecycle-intake.json
+notification-config.json
+out.json
+test_direct.jpg
+generate_readme.py
